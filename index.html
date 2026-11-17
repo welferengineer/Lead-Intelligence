@@ -200,7 +200,7 @@ document.getElementById("file").addEventListener("change", async e => {
   const wb = XLSX.read(await f.arrayBuffer(), { type:"array" });
   loadRows(sheetToRows(wb.Sheets[wb.SheetNames[0]]));
 });
-document.getElementById("sampleBtn").addEventListener("click", async () => {
+document.getElementById("sampleBtn")?.addEventListener("click", async () => {
   const txt = await (await fetch("sample/leads_exemplo.csv")).text();
   const wb = XLSX.read(txt, { type:"string" });
   loadRows(sheetToRows(wb.Sheets[wb.SheetNames[0]]));
