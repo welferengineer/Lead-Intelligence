@@ -1,0 +1,11 @@
+{
+  "name": "lead-intelligence",
+  "version": "1.0.0",
+  "description": "Orquestração de agentes de IA (Gemini) para análise e qualificação de leads a partir de planilhas brutas",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "engines": { "node": ">=18" }
+}

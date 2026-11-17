@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Lead Intelligence — Agentes de IA para qualificação de leads</title>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  :root { --bg:#0f1115; --panel:#171a21; --line:#262a33; --text:#e8eaed; --muted:#9aa0a6; --accent:#ea1d2c; --ok:#22c55e; --mid:#f59e0b; --low:#64748b; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background:var(--bg); color:var(--text); }
+  header { padding:28px 32px 18px; border-bottom:1px solid var(--line); }
+  header h1 { margin:0; font-size:24px; letter-spacing:-.3px; }
+  header h1 span { color:var(--accent); }
+  header p { margin:6px 0 0; color:var(--muted); font-size:14px; max-width:820px; }
+  main { padding:24px 32px 60px; max-width:1280px; margin:0 auto; }
+  .panel { background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:20px; margin-bottom:18px; }
+  .panel h2 { margin:0 0 12px; font-size:16px; }
+  .row { display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
+  .grid { display:grid; gap:18px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+  button, .btn { background:var(--accent); color:#fff; border:0; padding:10px 16px; border-radius:10px; font-weight:600; cursor:pointer; font-size:14px; }
+  button.secondary { background:#2a2f3a; }
+  button:disabled { opacity:.5; cursor:not-allowed; }
+  input[type=file] { color:var(--muted); }
+  textarea { width:100%; min-height:84px; background:#0f1115; color:var(--text); border:1px solid var(--line); border-radius:10px; padding:10px; font:inherit; font-size:13px; }
+  .muted { color:var(--muted); font-size:13px; }
+  .chip { display:inline-block; padding:3px 9px; border-radius:999px; font-size:12px; background:#232834; margin:2px 4px 2px 0; }
+  .chip.private { background:#3b1d22; color:#fca5a5; }
+  .steps { display:grid; grid-template-columns: repeat(3,1fr); gap:12px; margin-top:14px; }
+  .step { border:1px solid var(--line); border-radius:12px; padding:12px; font-size:13px; }
+  .step b { display:block; margin-bottom:4px; }
+  .step.run { border-color:var(--mid); } .step.done { border-color:var(--ok); } .step.err { border-color:var(--accent); }
+  .kpis { display:grid; grid-template-columns: repeat(auto-fit,minmax(160px,1fr)); gap:12px; }
+  .kpi { background:#0f1115; border:1px solid var(--line); border-radius:12px; padding:14px; }
+  .kpi .v { font-size:24px; font-weight:700; } .kpi .l { color:var(--muted); font-size:12px; margin-top:2px; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th, td { text-align:left; padding:9px 8px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { color:var(--muted); font-weight:600; font-size:12px; position:sticky; top:0; background:var(--panel); }
+  .tablewrap { max-height:520px; overflow:auto; }
+  .score { font-weight:700; padding:3px 8px; border-radius:8px; color:#0f1115; }
+  .alta { background:var(--ok); } .media { background:var(--mid); } .baixa { background:var(--low); color:#fff; }
+  .card { background:#0f1115; border:1px solid var(--line); border-radius:12px; padding:14px; }
+  .card h3 { margin:0 0 4px; font-size:14px; } .card .msg { white-space:pre-wrap; font-size:13px; margin:10px 0; }
+  ul { margin:6px 0 0; padding-left:18px; } li { margin:4px 0; font-size:14px; }
+  .hidden { display:none; }
+  .banner { padding:10px 14px; border-radius:10px; background:#2a2312; color:#fcd34d; font-size:13px; margin-bottom:14px; }
+  footer { color:var(--muted); font-size:12px; text-align:center; padding:20px; }
+  code { background:#0f1115; padding:2px 6px; border-radius:6px; font-size:12px; }
+  @media (max-width:700px){ .steps{grid-template-columns:1fr;} main,header{padding-left:16px;padding-right:16px;} }
+</style>
+</head>
+<body>
+<header>
+  <h1>Lead <span>Intelligence</span></h1>
+  <p>Suba uma planilha bruta de empresas e três agentes de IA trabalham em sequência: o <b>Analista de Dados</b> encontra padrões, o <b>Qualificador</b> dá nota a cada lead e o <b>Redator</b> escreve a primeira abordagem para os melhores. E-mail, telefone e endereço <b>não saem do seu navegador</b>.</p>
+</header>
+
+<main>
+  <section class="panel">
+    <h2>1. Base de leads</h2>
+    <div class="row">
+      <input type="file" id="file" accept=".xlsx,.xls,.csv" />
+      <button class="secondary" id="sampleBtn">Usar planilha de exemplo (fictícia)</button>
+    </div>
+    <p class="muted" id="fileInfo">Aceita .xlsx ou .csv (ex.: exportação da junta comercial com CNPJ, razão social, CNAE, capital social, município...).</p>
+    <div id="cols"></div>
+  </section>
+
+  <section class="panel">
+    <h2>2. Contexto do negócio</h2>
+    <p class="muted">Diga aos agentes o que você vende e quem é o cliente ideal. É isso que guia a qualificação.</p>
+    <textarea id="contexto"></textarea>
+    <div class="row" style="margin-top:12px">
+      <label class="muted">Abordagens para os top <input id="top" type="number" value="5" min="1" max="15" style="width:56px;background:#0f1115;color:#fff;border:1px solid var(--line);border-radius:6px;padding:4px"> leads</label>
+      <button id="runBtn" disabled>Rodar agentes</button>
+    </div>
+    <div class="steps">
+      <div class="step" id="s1"><b>① Analista de Dados</b><span>Aguardando</span></div>
+      <div class="step" id="s2"><b>② Qualificador</b><span>Aguardando</span></div>
+      <div class="step" id="s3"><b>③ Redator Comercial</b><span>Aguardando</span></div>
+    </div>
+  </section>
+
+  <div id="results" class="hidden">
+    <div id="mockBanner" class="banner hidden">Modo demonstração: o servidor está sem GEMINI_API_KEY, então os resultados abaixo são heurísticos.</div>
+
+    <section class="panel">
+      <h2>Visão geral</h2>
+      <div class="kpis" id="kpis"></div>
+    </section>
+
+    <div class="grid">
+      <section class="panel"><h2>Atividades (CNAE) mais frequentes</h2><canvas id="chCnae" height="220"></canvas></section>
+      <section class="panel"><h2>Municípios</h2><canvas id="chMun" height="220"></canvas></section>
+    </div>
+
+    <section class="panel">
+      <h2>Análise do Agente de Dados</h2>
+      <p id="resumo"></p>
+      <div class="grid">
+        <div><b>Insights</b><ul id="insights"></ul></div>
+        <div><b>Segmentos prioritários</b><ul id="segmentos"></ul></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="row" style="justify-content:space-between"><h2 style="margin:0">Ranking de leads</h2><button class="secondary" id="exportBtn">Exportar CSV</button></div>
+      <div class="tablewrap" style="margin-top:10px"><table id="rank"></table></div>
+    </section>
+
+    <section class="panel">
+      <h2>Abordagens personalizadas</h2>
+      <div class="grid" id="pitches"></div>
+    </section>
+  </div>
+</main>
+<footer>Lead Intelligence · agentes orquestrados com Gemini · API: <code>POST /api/pipeline</code></footer>
+
+<script>
+const DEFAULT_CONTEXT = "Empresa júnior de engenharia que elabora projetos de prevenção e combate a incêndio (exigidos pelo Corpo de Bombeiros para regularizar o estabelecimento) e instala extintores em edificações de até 900 m². Cliente ideal: empresa recém-aberta ou em funcionamento cuja atividade (CNAE) e porte indicam necessidade de projeto de prevenção e combate a incêndio.";
+document.getElementById("contexto").value = DEFAULT_CONTEXT;
+
+// Campos que NUNCA são enviados para a API (ficam só no navegador)
+const PRIVATE = ["email", "telefone", "logradouro", "numero", "complemento", "cep", "celular"];
+// Mapeamento de cabeçalhos comuns -> nome padrão
+const ALIASES = {
+  cnpj:["cnpj"], razao_social:["razao social","razao_social","nome empresarial","empresa"],
+  nome_fantasia:["nome fantasia","fantasia"], data_abertura:["data de abertura","data abertura","abertura","data inicio atividade","inicio atividade"],
+  cnae:["cnae","cnae principal","atividade principal","cnae fiscal","descricao cnae"], natureza_juridica:["natureza juridica","natureza"],
+  capital_social:["capital social","capital"], municipio:["municipio","cidade"], bairro:["bairro"],
+  email:["email","e-mail","correio eletronico"], telefone:["telefone","fone","telefone 1","ddd telefone"], celular:["celular"],
+  logradouro:["logradouro","endereco","rua"], numero:["numero","nº","n"], complemento:["complemento"], cep:["cep"], uf:["uf","estado"]
+};
+const norm = s => String(s).normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase().replace(/[_\-]+/g," ").trim();
+function mapHeader(h){ const n = norm(h); for (const [k,al] of Object.entries(ALIASES)) if (al.includes(n)) return k; return n.replace(/\s+/g,"_"); }
+
+let allRows = [];   // linhas completas (com contatos) — ficam no navegador
+let publicRows = []; // linhas sem dados de contato — enviadas aos agentes
+
+function loadRows(rows){
+  allRows = rows.map((r,i) => { const o = { id:String(i+1) }; for (const [k,v] of Object.entries(r)) o[mapHeader(k)] = v; return o; })
+                .filter(r => Object.keys(r).length > 1);
+  publicRows = allRows.map(r => Object.fromEntries(Object.entries(r).filter(([k]) => !PRIVATE.includes(k))));
+  const keys = [...new Set(allRows.flatMap(Object.keys))].filter(k => k !== "id");
+  document.getElementById("fileInfo").textContent = `${allRows.length} leads carregados.`;
+  document.getElementById("cols").innerHTML = "<p class='muted'>Colunas detectadas (vermelho = fica só no navegador):</p>" +
+    keys.map(k => `<span class="chip ${PRIVATE.includes(k)?"private":""}">${k}</span>`).join("");
+  document.getElementById("runBtn").disabled = allRows.length === 0;
+  if (allRows.length > 200) alert("A análise usa os primeiros 200 leads.");
+}
+
+document.getElementById("file").addEventListener("change", async e => {
+  const f = e.target.files[0]; if (!f) return;
+  const wb = XLSX.read(await f.arrayBuffer(), { type:"array" });
+  loadRows(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { raw:false, defval:"" }));
+});
+document.getElementById("sampleBtn").addEventListener("click", async () => {
+  const txt = await (await fetch("sample/leads_exemplo.csv")).text();
+  const wb = XLSX.read(txt, { type:"string" });
+  loadRows(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { raw:false, defval:"" }));
+});
+
+function setStep(n, cls, text){ const el = document.getElementById("s"+n); el.className = "step " + cls; el.querySelector("span").textContent = text; }
+async function callAgent(body){
+  const r = await fetch("api/agent", { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(body) });
+  const j = await r.json(); if (!r.ok) throw new Error(j.error || r.statusText); return j;
+}
+
+let lastRanking = [];
+document.getElementById("runBtn").addEventListener("click", async () => {
+  const btn = document.getElementById("runBtn"); btn.disabled = true;
+  const contexto = document.getElementById("contexto").value.trim() || DEFAULT_CONTEXT;
+  const top = Math.max(1, Math.min(15, +document.getElementById("top").value || 5));
+  const leads = publicRows.slice(0, 200);
+  [1,2,3].forEach(n => setStep(n, "", "Aguardando"));
+  let step = 1;
+  try {
+    let t = performance.now();
+    setStep(1, "run", "Analisando a base...");
+    const analise = await callAgent({ agent:"analista", leads, contexto });
+    setStep(1, "done", `Concluído em ${((performance.now()-t)/1000).toFixed(1)}s`);
+    renderAnalise(analise);
+
+    step = 2; t = performance.now();
+    setStep(2, "run", `Qualificando ${leads.length} leads...`);
+    const q = await callAgent({ agent:"qualificador", leads, contexto, segmentos: analise.segmentos_prioritarios || [] });
+    setStep(2, "done", `Concluído em ${((performance.now()-t)/1000).toFixed(1)}s`);
+    const byId = Object.fromEntries(allRows.map(r => [r.id, r]));
+    lastRanking = q.leads.map(s => ({ ...byId[String(s.id)], ...s })).sort((a,b) => (b.score||0)-(a.score||0));
+    renderRanking(lastRanking);
+
+    step = 3; t = performance.now();
+    setStep(3, "run", `Escrevendo ${top} abordagens...`);
+    const topLeads = lastRanking.slice(0, top).map(r => Object.fromEntries(Object.entries(r).filter(([k]) => !PRIVATE.includes(k))));
+    const red = await callAgent({ agent:"redator", leads: topLeads, contexto });
+    setStep(3, "done", `Concluído em ${((performance.now()-t)/1000).toFixed(1)}s`);
+    renderPitches(red.abordagens || [], byId);
+  } catch (e) {
+    setStep(step, "err", "Erro: " + e.message);
+  } finally { btn.disabled = false; }
+});
+
+const fmtBRL = v => v == null ? "—" : v.toLocaleString("pt-BR", { style:"currency", currency:"BRL", maximumFractionDigits:0 });
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c]));
+const charts = {};
+function bar(id, data){
+  if (charts[id]) charts[id].destroy();
+  charts[id] = new Chart(document.getElementById(id), {
+    type:"bar", data:{ labels:data.map(d => d.label.length>38 ? d.label.slice(0,36)+"…" : d.label), datasets:[{ data:data.map(d=>d.count), backgroundColor:"#ea1d2c", borderRadius:6 }] },
+    options:{ indexAxis:"y", plugins:{ legend:{ display:false } }, scales:{ x:{ ticks:{ color:"#9aa0a6", precision:0 }, grid:{ color:"#262a33" } }, y:{ ticks:{ color:"#e8eaed" }, grid:{ display:false } } } }
+  });
+}
+function renderAnalise(a){
+  document.getElementById("results").classList.remove("hidden");
+  document.getElementById("mockBanner").classList.toggle("hidden", !a.mock);
+  const s = a.stats;
+  document.getElementById("kpis").innerHTML = [
+    [s.total, "leads analisados"], [s.abertas_ultimos_12_meses, "abertos nos últimos 12 meses"],
+    [s.idade_media_anos != null ? s.idade_media_anos + " anos" : "—", "idade média das empresas"], [fmtBRL(s.capital_social_mediano), "capital social mediano"]
+  ].map(([v,l]) => `<div class="kpi"><div class="v">${v}</div><div class="l">${l}</div></div>`).join("");
+  bar("chCnae", s.top_cnae); bar("chMun", s.top_municipio);
+  document.getElementById("resumo").textContent = a.resumo || "";
+  document.getElementById("insights").innerHTML = (a.insights||[]).map(i => `<li>${esc(i)}</li>`).join("");
+  document.getElementById("segmentos").innerHTML = (a.segmentos_prioritarios||[]).map(x => `<li><b>${esc(x.segmento)}</b>: ${esc(x.motivo)}</li>`).join("");
+}
+function renderRanking(rows){
+  document.getElementById("rank").innerHTML = "<tr><th>#</th><th>Nota</th><th>Empresa</th><th>Atividade</th><th>Município / bairro</th><th>Motivo</th><th>Contato</th></tr>" +
+    rows.map((r,i) => `<tr><td>${i+1}</td><td><span class="score ${r.prioridade||"baixa"}">${r.score ?? "—"}</span></td>
+      <td><b>${esc(r.nome_fantasia || r.razao_social)}</b><div class="muted">${esc(r.cnpj)}</div></td>
+      <td>${esc(r.cnae)}</td><td>${esc(r.municipio)}<div class="muted">${esc(r.bairro)}</div></td>
+      <td>${esc(r.motivo)}</td><td class="muted">${esc(r.telefone || r.celular)}<div>${esc(r.email)}</div></td></tr>`).join("");
+}
+function renderPitches(list, byId){
+  document.getElementById("pitches").innerHTML = list.map(p => {
+    const l = byId[String(p.id)] || {};
+    return `<div class="card"><h3>${esc(l.nome_fantasia || l.razao_social || "Lead " + p.id)}</h3>
+      <div class="muted">Gancho: ${esc(p.gancho)}</div>
+      <div class="muted">Assunto do e-mail: <b>${esc(p.assunto_email)}</b></div>
+      <div class="msg">${esc(p.mensagem_whatsapp)}</div>
+      <button class="secondary" onclick="navigator.clipboard.writeText(this.previousElementSibling.textContent)">Copiar mensagem</button></div>`;
+  }).join("");
+}
+document.getElementById("exportBtn").addEventListener("click", () => {
+  if (!lastRanking.length) return;
+  const ws = XLSX.utils.json_to_sheet(lastRanking);
+  const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Ranking");
+  XLSX.writeFile(wb, "leads_qualificados.csv", { bookType:"csv" });
+});
+</script>
+</body>
+</html>
