@@ -71,6 +71,8 @@
     <h2>2. Contexto do negócio</h2>
     <p class="muted">Diga aos agentes o que você vende e quem é o cliente ideal. É isso que guia a qualificação.</p>
     <textarea id="contexto"></textarea>
+    <p class="muted" style="margin-top:14px"><b>CNAEs que exigem projeto</b> (opcional, um por linha, ex.: <code>5510-8/01</code> ou só a classe <code>5611</code>). É uma regra fixa: o app marca cada lead antes de enviar e o Qualificador é obrigado a usar essa marcação.</p>
+    <textarea id="cnaesObrig" placeholder="5510-8/01&#10;5611&#10;8630-5/04"></textarea>
     <div class="row" style="margin-top:12px">
       <label class="muted">Abordagens para os top <input id="top" type="number" value="5" min="1" max="15" style="width:56px;background:#0f1115;color:#fff;border:1px solid var(--line);border-radius:6px;padding:4px"> leads</label>
       <button id="runBtn" disabled>Rodar agentes</button>
@@ -122,30 +124,73 @@ const DEFAULT_CONTEXT = "Empresa júnior de engenharia que elabora projetos de p
 document.getElementById("contexto").value = DEFAULT_CONTEXT;
 
 // Campos que NUNCA são enviados para a API (ficam só no navegador)
-const PRIVATE = ["email", "telefone", "logradouro", "numero", "complemento", "cep", "celular"];
+const PRIVATE_PREFIX = ["email", "telefone", "celular", "logradouro", "numero", "complemento", "cep", "tipo_email", "site"];
+const isPrivate = k => PRIVATE_PREFIX.some(p => k === p || k.startsWith(p + "_"));
+// Segunda barreira: qualquer VALOR que pareça e-mail ou telefone também não sai do navegador
+const looksPrivate = v => /\S+@\S+\.\S+/.test(String(v)) || /^\(?\d{2}\)?\s?9?\d{4}-?\d{4}$/.test(String(v).replace(/\s+/g,"")) || /^\d{10,11}$/.test(String(v).trim());
+
 // Mapeamento de cabeçalhos comuns -> nome padrão
 const ALIASES = {
-  cnpj:["cnpj"], razao_social:["razao social","razao_social","nome empresarial","empresa"],
+  cnpj:["cnpj"], razao_social:["razao social","nome empresarial","empresa"],
   nome_fantasia:["nome fantasia","fantasia"], data_abertura:["data de abertura","data abertura","abertura","data inicio atividade","inicio atividade"],
   cnae:["cnae","cnae principal","atividade principal","cnae fiscal","descricao cnae"], natureza_juridica:["natureza juridica","natureza"],
-  capital_social:["capital social","capital"], municipio:["municipio","cidade"], bairro:["bairro"],
-  email:["email","e-mail","correio eletronico"], telefone:["telefone","fone","telefone 1","ddd telefone"], celular:["celular"],
+  capital_social:["capital social","capital"], porte:["porte","porte da empresa"], municipio:["municipio","cidade"], bairro:["bairro"],
+  email:["email","e mail","email 1","e mail 1","correio eletronico"], email_2:["email 2","e mail 2"], tipo_email:["tipo email","tipo de email"],
+  telefone:["telefone","fone","telefone 1","ddd telefone"], telefone_2:["telefone 2"], celular:["celular"],
   logradouro:["logradouro","endereco","rua"], numero:["numero","nº","n"], complemento:["complemento"], cep:["cep"], uf:["uf","estado"]
 };
-const norm = s => String(s).normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase().replace(/[_\-]+/g," ").trim();
-function mapHeader(h){ const n = norm(h); for (const [k,al] of Object.entries(ALIASES)) if (al.includes(n)) return k; return n.replace(/\s+/g,"_"); }
+const norm = s => String(s).normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase().replace(/[_\-]+/g," ").replace(/\s+/g," ").trim();
+const ALIAS_INDEX = Object.fromEntries(Object.entries(ALIASES).flatMap(([k,al]) => al.map(a => [a,k])));
+function mapHeader(h){
+  const n = norm(h); if (ALIAS_INDEX[n]) return ALIAS_INDEX[n];
+  const sec = n.match(/^cnae sec\.?\s*(\d+)/); if (sec) return "cnae_sec_" + sec[1];
+  return n.replace(/[^a-z0-9]+/g,"_").replace(/^_|_$/g,"");
+}
 
 let allRows = [];   // linhas completas (com contatos) — ficam no navegador
 let publicRows = []; // linhas sem dados de contato — enviadas aos agentes
 
+// Encontra a linha de cabeçalho real (planilhas da junta têm logo e título nas primeiras linhas)
+function sheetToRows(ws){
+  const grid = XLSX.utils.sheet_to_json(ws, { header:1, raw:false, defval:"" });
+  let best = 0, bestScore = -1;
+  for (let i = 0; i < Math.min(grid.length, 25); i++) {
+    const score = grid[i].filter(c => c && ALIAS_INDEX[norm(c)]).length;
+    if (score > bestScore) { bestScore = score; best = i; }
+  }
+  const headers = grid[best].map((h, j) => h ? mapHeader(h) : "col_" + (j+1));
+  return grid.slice(best + 1)
+    .filter(r => r.some(c => String(c).trim() !== ""))
+    .map(r => Object.fromEntries(headers.map((h, j) => [h, r[j] ?? ""]).filter(([h, v]) => !h.startsWith("col_") || v !== "")));
+}
+
+const cnaeDigits = v => String(v || "").replace(/\D/g, "");
+function cnaeList(){
+  return document.getElementById("cnaesObrig").value.split(/[\n,;]+/).map(cnaeDigits).filter(x => x.length >= 4);
+}
+function marcarCnae(r, lista){
+  if (!lista.length) return r;
+  const codes = Object.entries(r).filter(([k]) => k === "cnae" || k.startsWith("cnae_sec")).map(([,v]) => cnaeDigits(v).slice(0,7)).filter(Boolean);
+  const principal = cnaeDigits(r.cnae).slice(0,7);
+  const hit = lista.find(c => principal.startsWith(c));
+  const hitSec = !hit && lista.find(c => codes.some(x => x.startsWith(c)));
+  return { ...r, cnae_exige_projeto: hit ? "sim (CNAE principal)" : hitSec ? "sim (CNAE secundário)" : "não consta na lista" };
+}
+
+function buildPublic(){
+  const lista = cnaeList();
+  publicRows = allRows.map(r => marcarCnae(Object.fromEntries(Object.entries(r).filter(([k,v]) => !isPrivate(k) && !looksPrivate(v) && v !== "")), lista));
+}
+
 function loadRows(rows){
-  allRows = rows.map((r,i) => { const o = { id:String(i+1) }; for (const [k,v] of Object.entries(r)) o[mapHeader(k)] = v; return o; })
-                .filter(r => Object.keys(r).length > 1);
-  publicRows = allRows.map(r => Object.fromEntries(Object.entries(r).filter(([k]) => !PRIVATE.includes(k))));
+  allRows = rows.map((r,i) => ({ id:String(i+1), ...r })).filter(r => r.cnpj || r.razao_social || r.nome_fantasia);
+  buildPublic();
   const keys = [...new Set(allRows.flatMap(Object.keys))].filter(k => k !== "id");
-  document.getElementById("fileInfo").textContent = `${allRows.length} leads carregados.`;
+  const mapped = ["cnpj","razao_social","cnae","data_abertura"].filter(k => keys.includes(k));
+  document.getElementById("fileInfo").textContent = `${allRows.length} leads carregados.` +
+    (mapped.length < 2 ? " Atenção: não reconheci as colunas principais (CNPJ, razão social, CNAE). Confira o cabeçalho da planilha." : "");
   document.getElementById("cols").innerHTML = "<p class='muted'>Colunas detectadas (vermelho = fica só no navegador):</p>" +
-    keys.map(k => `<span class="chip ${PRIVATE.includes(k)?"private":""}">${k}</span>`).join("");
+    keys.map(k => `<span class="chip ${isPrivate(k)?"private":""}">${k}</span>`).join("");
   document.getElementById("runBtn").disabled = allRows.length === 0;
   if (allRows.length > 200) alert("A análise usa os primeiros 200 leads.");
 }
@@ -153,13 +198,14 @@ function loadRows(rows){
 document.getElementById("file").addEventListener("change", async e => {
   const f = e.target.files[0]; if (!f) return;
   const wb = XLSX.read(await f.arrayBuffer(), { type:"array" });
-  loadRows(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { raw:false, defval:"" }));
+  loadRows(sheetToRows(wb.Sheets[wb.SheetNames[0]]));
 });
 document.getElementById("sampleBtn").addEventListener("click", async () => {
   const txt = await (await fetch("sample/leads_exemplo.csv")).text();
   const wb = XLSX.read(txt, { type:"string" });
-  loadRows(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { raw:false, defval:"" }));
+  loadRows(sheetToRows(wb.Sheets[wb.SheetNames[0]]));
 });
+document.getElementById("cnaesObrig").addEventListener("input", () => { if (allRows.length) buildPublic(); });
 
 function setStep(n, cls, text){ const el = document.getElementById("s"+n); el.className = "step " + cls; el.querySelector("span").textContent = text; }
 async function callAgent(body){
@@ -186,13 +232,13 @@ document.getElementById("runBtn").addEventListener("click", async () => {
     setStep(2, "run", `Qualificando ${leads.length} leads...`);
     const q = await callAgent({ agent:"qualificador", leads, contexto, segmentos: analise.segmentos_prioritarios || [] });
     setStep(2, "done", `Concluído em ${((performance.now()-t)/1000).toFixed(1)}s`);
-    const byId = Object.fromEntries(allRows.map(r => [r.id, r]));
+    const byId = Object.fromEntries(allRows.map(r => [r.id, { ...r, ...(publicRows.find(p => p.id === r.id) || {}) }]));
     lastRanking = q.leads.map(s => ({ ...byId[String(s.id)], ...s })).sort((a,b) => (b.score||0)-(a.score||0));
     renderRanking(lastRanking);
 
     step = 3; t = performance.now();
     setStep(3, "run", `Escrevendo ${top} abordagens...`);
-    const topLeads = lastRanking.slice(0, top).map(r => Object.fromEntries(Object.entries(r).filter(([k]) => !PRIVATE.includes(k))));
+    const topLeads = lastRanking.slice(0, top).map(r => publicRows.find(p => p.id === r.id) ? { ...publicRows.find(p => p.id === r.id), score:r.score, prioridade:r.prioridade, motivo:r.motivo } : r);
     const red = await callAgent({ agent:"redator", leads: topLeads, contexto });
     setStep(3, "done", `Concluído em ${((performance.now()-t)/1000).toFixed(1)}s`);
     renderPitches(red.abordagens || [], byId);
@@ -229,7 +275,7 @@ function renderRanking(rows){
     rows.map((r,i) => `<tr><td>${i+1}</td><td><span class="score ${r.prioridade||"baixa"}">${r.score ?? "—"}</span></td>
       <td><b>${esc(r.nome_fantasia || r.razao_social)}</b><div class="muted">${esc(r.cnpj)}</div></td>
       <td>${esc(r.cnae)}</td><td>${esc(r.municipio)}<div class="muted">${esc(r.bairro)}</div></td>
-      <td>${esc(r.motivo)}</td><td class="muted">${esc(r.telefone || r.celular)}<div>${esc(r.email)}</div></td></tr>`).join("");
+      <td>${esc(r.motivo)}${r.cnae_exige_projeto && r.cnae_exige_projeto.startsWith("sim") ? `<div class="muted">✔ CNAE na lista: ${esc(r.cnae_exige_projeto)}</div>` : ""}</td><td class="muted">${esc(r.telefone || r.celular || r.telefone_2)}<div>${esc(r.email || r.email_2)}</div><div>${esc(r.logradouro)}</div></td></tr>`).join("");
 }
 function renderPitches(list, byId){
   document.getElementById("pitches").innerHTML = list.map(p => {
