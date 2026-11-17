@@ -58,10 +58,10 @@
 
 <main>
   <section class="panel">
-    <h2>1. Base de leads</h2>
+    <h2>1. Fonte de Dados</h2>
     <div class="row">
       <input type="file" id="file" accept=".xlsx,.xls,.csv" />
-      <button class="secondary" id="sampleBtn">Usar planilha de exemplo (fictícia)</button>
+      <button class="secondary" id="sampleBtn" Suba uma .pdf ou .xlsx, .xls ou csv</button>
     </div>
     <p class="muted" id="fileInfo">Aceita .xlsx ou .csv (ex.: exportação da junta comercial com CNPJ, razão social, CNAE, capital social, município...).</p>
     <div id="cols"></div>
@@ -69,9 +69,9 @@
 
   <section class="panel">
     <h2>2. Contexto do negócio</h2>
-    <p class="muted">Diga aos agentes o que você vende e quem é o cliente ideal. É isso que guia a qualificação.</p>
+    <p class="muted">Diga aos agentes o que você vende e quem é o cliente ideal.</p>
     <textarea id="contexto"></textarea>
-    <p class="muted" style="margin-top:14px"><b>CNAEs que exigem projeto</b> (opcional, um por linha, ex.: <code>5510-8/01</code> ou só a classe <code>5611</code>). É uma regra fixa: o app marca cada lead antes de enviar e o Qualificador é obrigado a usar essa marcação.</p>
+    <p class="muted" style="margin-top:14px"><b>CNAEs que exigem projeto</b> (opcional, um por linha, ex.: <code>5510-8/01</code> ou só a classe <code>5611</code>). O Agente Qualificador é obrigado a usar essa marcação para projetar Leads Qualificados.</p>
     <textarea id="cnaesObrig" placeholder="5510-8/01&#10;5611&#10;8630-5/04"></textarea>
     <div class="row" style="margin-top:12px">
       <label class="muted">Abordagens para os top <input id="top" type="number" value="5" min="1" max="15" style="width:56px;background:#0f1115;color:#fff;border:1px solid var(--line);border-radius:6px;padding:4px"> leads</label>
@@ -117,7 +117,7 @@
     </section>
   </div>
 </main>
-<footer>Lead Intelligence · agentes orquestrados com Gemini · API: <code>POST /api/pipeline</code></footer>
+<footer>Lead Intelligence - Matriz Jr. Engenharia PI: <code>POST /api/pipeline</code></footer>
 
 <script>
 const DEFAULT_CONTEXT = "Empresa júnior de engenharia que elabora projetos de prevenção e combate a incêndio (exigidos pelo Corpo de Bombeiros para regularizar o estabelecimento) e instala extintores em edificações de até 900 m². Cliente ideal: empresa recém-aberta ou em funcionamento cuja atividade (CNAE) e porte indicam necessidade de projeto de prevenção e combate a incêndio.";
