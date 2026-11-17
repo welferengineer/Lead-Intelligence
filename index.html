@@ -63,15 +63,15 @@
       <input type="file" id="file" accept=".xlsx,.xls,.csv" />
       
     </div>
-    <p class="muted" id="fileInfo">Aceita .xlsx ou .csv (ex.: exportação da junta comercial com CNPJ, razão social, CNAE, capital social, município...).</p>
+    <p class="muted" id="fileInfo">Aceita .xlsx ou .csv </p>
     <div id="cols"></div>
   </section>
 
   <section class="panel">
     <h2>2. Contexto do negócio</h2>
-    <p class="muted">Diga aos agentes o que você vende e quem é o cliente ideal. É isso que guia a qualificação.</p>
+    <p class="muted">Promp Engineering. Diga o contexto e o objetivo. É o RAG dos Agentes.</p>
     <textarea id="contexto"></textarea>
-    <p class="muted" style="margin-top:14px"><b>CNAEs que exigem projeto</b> (opcional, um por linha, ex.: <code>5510-8/01</code> ou só a classe <code>5611</code>). É uma regra fixa: o app marca cada lead antes de enviar e o Qualificador é obrigado a usar essa marcação.</p>
+    <p class="muted" style="margin-top:14px"><b>CNAEs que exigem projeto</b> (opcional, um por linha, ex.: <code>5510-8/01</code> ou só a classe <code>5611</code>). O Qualificador é obrigado a usar essa marcação para projetar Leads qualificados.</p>
     <textarea id="cnaesObrig" placeholder="5510-8/01&#10;5611&#10;8630-5/04"></textarea>
     <div class="row" style="margin-top:12px">
       <label class="muted">Abordagens para os top <input id="top" type="number" value="5" min="1" max="15" style="width:56px;background:#0f1115;color:#fff;border:1px solid var(--line);border-radius:6px;padding:4px"> leads</label>
