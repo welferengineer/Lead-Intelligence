@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Lead Intelligence — Agentes de IA para qualificação de leads</title>
+<title>Matriz Comercial — Agentes de IA para qualificação de leads</title>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <style>
@@ -52,7 +52,7 @@
 </head>
 <body>
 <header>
-  <h1>Lead <span>Intelligence</span></h1>
+  <h1>Matriz <span>Comercial </span></h1>
   <p>Suba uma planilha bruta de empresas e três agentes de IA trabalham em sequência: o <b>Analista de Dados</b> encontra padrões, o <b>Qualificador</b> dá nota a cada lead e o <b>Redator</b> escreve a primeira abordagem para os melhores. E-mail, telefone e endereço <b>não saem do seu navegador</b>.</p>
 </header>
 
@@ -63,18 +63,18 @@
       <input type="file" id="file" accept=".xlsx,.xls,.csv" />
       <button class="secondary" id="sampleBtn"> Suba um arquivo .xlsx, .xls ou csv </button>
     </div>
-    <p class="muted" id="fileInfo">Aceita .xlsx ou .csv (ex.: exportação da junta comercial com CNPJ, razão social, CNAE, capital social, município...).</p>
+
     <div id="cols"></div>
   </section>
 
   <section class="panel">
     <h2>2. Contexto do negócio</h2>
-    <p class="muted">Diga aos agentes o que você vende e quem é o cliente ideal.</p>
+    <p class="muted">Digite o contexto do negócio e o objetivo. RAG dos agentes.</p>
     <textarea id="contexto"></textarea>
     <p class="muted" style="margin-top:14px"><b>CNAEs que exigem projeto</b> (opcional, um por linha, ex.: <code>5510-8/01</code> ou só a classe <code>5611</code>). O Agente Qualificador é obrigado a usar essa marcação para projetar Leads Qualificados.</p>
     <textarea id="cnaesObrig" placeholder="5510-8/01&#10;5611&#10;8630-5/04"></textarea>
     <div class="row" style="margin-top:12px">
-      <label class="muted">Abordagens para os top <input id="top" type="number" value="5" min="1" max="15" style="width:56px;background:#0f1115;color:#fff;border:1px solid var(--line);border-radius:6px;padding:4px"> leads</label>
+      <label class="muted">Mensagem personalizada para os top <input id="top" type="number" value="5" min="1" max="15" style="width:56px;background:#0f1115;color:#fff;border:1px solid var(--line);border-radius:6px;padding:4px"> leads</label>
       <button id="runBtn" disabled>Rodar agentes</button>
     </div>
     <div class="steps">
