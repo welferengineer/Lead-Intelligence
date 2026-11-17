@@ -1,6 +1,6 @@
 # Lead Intelligence
 
-Orquestração de **três agentes de IA (Gemini)** que transformam uma planilha bruta de empresas (ex.: exportação da junta comercial) em um **ranking de leads qualificados** com **abordagens comerciais personalizadas**.
+Orquestração de **três agentes de IA (Gemini)** que transformam uma planilha bruta de empresasem um **ranking de leads qualificados** com **abordagens comerciais personalizadas**. Utiliza critérios pré-estabelecidos para a utilização no setor comercial da empresa júnior do IFF- Cabo Frio.
 
 > Feito por Welfer Marques. MVP construído em 1 dia.
 
